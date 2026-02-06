@@ -10,6 +10,26 @@ include("../config/db.php");
 $id = $_GET['id'];
 $msg = "";
 
+// AUTO-FIX: Add 'remarks' column if it doesn't exist
+try {
+    $check_col = mysqli_query($conn, "SHOW COLUMNS FROM works LIKE 'remarks'");
+    if (mysqli_num_rows($check_col) == 0) {
+        mysqli_query($conn, "ALTER TABLE works ADD COLUMN remarks TEXT DEFAULT NULL AFTER status");
+    }
+} catch (Exception $e) {
+    // Silently catch error during auto-fix attempt
+}
+
+// FINAL CHECK: Ensure column exists to prevent crash
+try {
+    $check_final = mysqli_query($conn, "SHOW COLUMNS FROM works LIKE 'remarks'");
+    if (mysqli_num_rows($check_final) == 0) {
+        die('<div class="alert alert-danger m-4"><b>Critical Error:</b> The database table `works` is missing the `remarks` column. Auto-fix failed. Please check database permissions.</div>');
+    }
+} catch (Exception $e) {
+    die('<div class="alert alert-danger m-4"><b>Database Error:</b> ' . $e->getMessage() . '</div>');
+}
+
 $work = mysqli_query($conn, "SELECT * FROM works WHERE id=$id");
 $w = mysqli_fetch_assoc($work);
 
@@ -55,16 +75,41 @@ if (isset($_POST['resend'])) {
             <div class="alert alert-info"><?= $msg ?></div>
         <?php endif; ?>
 
-        <form method="post">
-            <button name="accept" class="btn btn-success w-100 mb-2">Accept</button>
+        <form method="post" id="verifyForm">
+            <button type="submit" name="accept" class="btn btn-success w-100 mb-2" onclick="return confirm('Are you sure you want to accept this document?');">Accept</button>
 
-            <textarea name="remarks" class="form-control mb-2" placeholder="Reason for rejection"></textarea>
-            <button name="reject" class="btn btn-danger w-100 mb-2">Reject</button>
+            <!-- Trigger Modal -->
+            <button type="button" class="btn btn-danger w-100 mb-2" data-bs-toggle="modal" data-bs-target="#rejectModal">Reject</button>
 
-            <button name="resend" class="btn btn-warning w-100">Resend (+1 day)</button>
+            <button type="submit" name="resend" class="btn btn-warning w-100" onclick="return confirm('Are you sure you want to extend the deadline by 1 day?');">Resend (+1 day)</button>
         </form>
     </div>
 </div>
+
+<!-- Rejection Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="rejectModalLabel">Reject Document</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label for="remarks" class="form-label fw-bold">Reason for Rejection</label>
+            <textarea name="remarks" id="remarks" class="form-control" rows="4" placeholder="Please type the reason here..." form="verifyForm" required></textarea>
+            <div class="form-text">This reason will be sent to the user.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" name="reject" class="btn btn-danger" form="verifyForm">Confirm Rejection</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>

@@ -20,6 +20,36 @@ $works = mysqli_query(
 <head>
     <title>User Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Link JSZip and Docx-Preview -->
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
+
+    <style>
+        .preview-container {
+            width: 100%;
+            height: 500px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #dee2e6;
+        }
+        .preview-container iframe, .preview-container img, .preview-container .docx-wrapper {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border: none;
+            overflow-y: auto;
+        }
+        .preview-container .docx-wrapper {
+            background: #fff;
+            padding: 20px !important;
+        }
+    </style>
 </head>
 
 <body class="bg-light">
@@ -45,6 +75,7 @@ $works = mysqli_query(
                         <th>Assigned Date</th>
                         <th>Due Date</th>
                         <th>Status</th>
+                        <th>Evidence</th>
                         <th>Action</th>
                         <th>Remarks</th>
                     </tr>
@@ -78,6 +109,23 @@ $works = mysqli_query(
                                 echo "<span class='badge bg-danger'>Rejected</span>";
                             }
                             ?>
+                        </td>
+                        
+                        <!-- PREVIEW SECTION -->
+                        <td>
+                            <?php 
+                            $sub = mysqli_query($conn, "SELECT * FROM submissions WHERE work_id=".$w['id']." ORDER BY submitted_at DESC LIMIT 1");
+                            if ($s = mysqli_fetch_assoc($sub)) {
+                                $filePath = "../uploads/submissions/".$s['file_path'];
+                                $fileExt = pathinfo($s['file_path'], PATHINFO_EXTENSION);
+                            ?>
+                                <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-1" 
+                                        onclick="openPreview('<?= $filePath ?>', '<?= $fileExt ?>')">
+                                    <i class="bi bi-eye"></i> Preview
+                                </button>
+                            <?php } else { ?>
+                                <span class="text-muted small">N/A</span>
+                            <?php } ?>
                         </td>
 
                         <!-- SUBMIT BUTTON LOGIC -->
@@ -124,6 +172,84 @@ $works = mysqli_query(
     </div>
 
 </div>
+
+<!-- Document Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">My Submission Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-container" id="previewContent">
+                    <div class="d-flex flex-column align-items-center justify-content-center w-100 py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <span class="mt-2 text-muted">Opening document...</span>
+                    </div>
+                </div>
+                <div class="mt-3 text-end">
+                    <a href="#" id="downloadLink" class="btn btn-primary btn-sm" download>
+                        <i class="bi bi-download me-1"></i> Download
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Javascript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+    const previewContainer = document.getElementById('previewContent');
+    const downloadLink = document.getElementById('downloadLink');
+
+    function openPreview(path, ext) {
+        previewContainer.innerHTML = `
+            <div class="d-flex flex-column align-items-center justify-content-center w-100 py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <span class="mt-2 text-muted">Opening document...</span>
+            </div>`;
+        
+        const validImages = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        const extension = ext.toLowerCase();
+        
+        downloadLink.href = path;
+        previewModal.show();
+
+        if (validImages.includes(extension)) {
+            previewContainer.innerHTML = `<img src="${path}" alt="Document Preview">`;
+        } else if (extension === 'pdf') {
+            previewContainer.innerHTML = `<iframe src="${path}"></iframe>`;
+        } else if (extension === 'docx') {
+            fetch(path)
+                .then(response => response.blob())
+                .then(blob => {
+                    previewContainer.innerHTML = '';
+                    docx.renderAsync(blob, previewContainer)
+                        .catch(err => {
+                            console.error(err);
+                            showError(extension);
+                        });
+                })
+                .catch(err => {
+                    console.error(err);
+                    showError(extension);
+                });
+        } else {
+            showError(extension);
+        }
+    }
+
+    function showError(ext) {
+        previewContainer.innerHTML = `
+            <div class="text-center p-5 w-100">
+                <i class="bi bi-file-earmark-text display-1 text-secondary"></i>
+                <p class="mt-3 text-muted">Preview not available for .${ext} files.</p>
+            </div>`;
+    }
+</script>
 
 </body>
 </html>

@@ -12,62 +12,78 @@ $msg = "";
 
 if (isset($_POST['add_user'])) {
 
-    $name  = mysqli_real_escape_string($conn, $_POST['name']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $name  = mysqli_real_escape_string($conn, trim($_POST['name']));
+    $email = mysqli_real_escape_string($conn, trim($_POST['email']));
 
     // Check if user already exists
     $check = mysqli_query($conn, "SELECT * FROM users WHERE email='$email'");
     if (mysqli_num_rows($check) > 0) {
-
         $msg = "<div class='alert alert-danger'>User with this email already exists</div>";
-
     } else {
+        // AUTO-FIX: Add 'must_reset_password' column if it doesn't exist
+        $check_col = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'must_reset_password'");
+        if (mysqli_num_rows($check_col) == 0) {
+            mysqli_query($conn, "ALTER TABLE users ADD COLUMN must_reset_password TINYINT(1) DEFAULT 0 AFTER status");
+        }
 
-        // Insert user (inactive until password set)
+        // Generate random temporary password
+        $temp_password = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'), 0, 10);
+        $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
+
+        // Insert user (active with temporary password and reset flag)
         mysqli_query($conn,
-            "INSERT INTO users (name, email, status)
-             VALUES ('$name','$email','inactive')"
+            "INSERT INTO users (name, email, password, status, must_reset_password)
+             VALUES ('$name', '$email', '$hashed_password', 'active', 1)"
         );
 
         $user_id = mysqli_insert_id($conn);
-
-        // Generate password creation token
-        $token  = bin2hex(random_bytes(32));
-        $expiry = date("Y-m-d H:i:s", strtotime("+1 day"));
-
-        mysqli_query($conn,
-            "INSERT INTO password_resets (user_id, token, expiry)
-             VALUES ($user_id, '$token', '$expiry')"
-        );
-
-        // Password creation link
-        $link = "http://localhost/doc_verification/auth/create_password.php?token=$token";
 
         // Mail content
         $message = "
             <h3>Document Verification System</h3>
             <p>Hello <b>$name</b>,</p>
-            <p>Your account has been created.</p>
-            <p>Click the link below to create your password:</p>
-            <a href='$link'>$link</a>
-            <p><b>Note:</b> Link valid for 24 hours.</p>
+            <p>Your account has been created successfully.</p>
+            <p>Here are your login credentials:</p>
+            <p><b>Email:</b> $email</p>
+            <p><b>Temporary Password:</b> $temp_password</p>
+            <p>Please login and change your password for security.</p>
         ";
 
         // Try sending mail
-        $mailStatus = sendMail($email, "Create Your Password", $message);
+        $mailStatus = sendMail($email, "Your Account Credentials", $message);
 
-        if ($mailStatus) {
-            $msg = "<div class='alert alert-success'>User added and email sent successfully</div>";
-        } else {
-            // Fallback if mail server not working
-            $msg = "
-            <div class='alert alert-warning'>
-                <b>User added successfully.</b><br>
-                Mail server not configured.<br><br>
-                <b>Use this link to create password:</b><br>
-                <a href='$link' target='_blank'>$link</a>
-            </div>";
-        }
+        // Professional success message (displays password even if mail fails)
+        $msg = "
+        <div class='alert alert-success border-2 shadow-sm'>
+            <div class='d-flex align-items-center mb-2'>
+                <h5 class='mb-0'>✅ User Created Successfully</h5>
+            </div>
+            <p class='text-muted small mb-3'>The credentials have been sent to <b>$email</b>. You can also provide them manually below:</p>
+            
+            <div class='bg-white p-3 rounded border mb-2'>
+                <div class='mb-2'>
+                    <label class='text-uppercase fw-bold text-muted' style='font-size: 0.7rem;'>User Email</label>
+                    <div class='fw-bold'>$email</div>
+                </div>
+                <hr class='my-2'>
+                <div class='mb-0'>
+                    <label class='text-uppercase fw-bold text-muted' style='font-size: 0.7rem;'>Temporary Password</label>
+                    <div class='input-group'>
+                        <input type='text' id='tempPass' class='form-control fw-bold text-primary font-monospace border-0 bg-light' value='$temp_password' readonly>
+                        <button class='btn btn-outline-primary active' onclick='copyPassword()'>Copy</button>
+                    </div>
+                </div>
+            </div>
+            <script>
+            function copyPassword() {
+                var copyText = document.getElementById(\"tempPass\");
+                copyText.select();
+                copyText.setSelectionRange(0, 99999);
+                navigator.clipboard.writeText(copyText.value);
+                alert(\"Password copied to clipboard!\");
+            }
+            </script>
+        </div>";
     }
 }
 ?>
