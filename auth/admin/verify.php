@@ -31,29 +31,34 @@ try {
     die('<div class="alert alert-danger m-4"><b>Database Error:</b> ' . $e->getMessage() . '</div>');
 }
 
-$work = mysqli_query($conn, "SELECT * FROM works WHERE id=$id");
-$w = mysqli_fetch_assoc($work);
-
 if (isset($_POST['accept'])) {
-    mysqli_query($conn, "UPDATE works SET status='accepted' WHERE id=$id");
-    $msg = "Accepted successfully";
+    if (mysqli_query($conn, "UPDATE works SET status='accepted' WHERE id=$id")) {
+        $msg = "Accepted successfully";
+    } else {
+        $msg = "Error updating status: " . mysqli_error($conn);
+    }
 }
 
 if (isset($_POST['reject'])) {
     $remarks = mysqli_real_escape_string($conn, $_POST['remarks']);
-    mysqli_query($conn,
-        "UPDATE works SET status='rejected', remarks='$remarks' WHERE id=$id"
-    );
-    $msg = "Rejected & sent for resubmission";
+    if (mysqli_query($conn, "UPDATE works SET status='rejected', remarks='$remarks' WHERE id=$id")) {
+        $msg = "Rejected & sent for resubmission";
+    } else {
+        $msg = "Error updating status: " . mysqli_error($conn);
+    }
 }
 
 if (isset($_POST['resend'])) {
-    mysqli_query($conn,
-        "UPDATE works SET due_datetime = DATE_ADD(due_datetime, INTERVAL 1 DAY)
-         WHERE id=$id"
-    );
-    $msg = "Due date extended by 1 day";
+    if (mysqli_query($conn, "UPDATE works SET due_datetime = DATE_ADD(due_datetime, INTERVAL 1 DAY) WHERE id=$id")) {
+        $msg = "Due date extended by 1 day";
+    } else {
+        $msg = "Error updating due date: " . mysqli_error($conn);
+    }
 }
+
+// Fetch work data AFTER potential updates so the UI shows current state
+$work = mysqli_query($conn, "SELECT * FROM works WHERE id=$id");
+$w = mysqli_fetch_assoc($work);
 ?>
 
 <!DOCTYPE html>

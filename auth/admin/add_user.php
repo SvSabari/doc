@@ -9,6 +9,7 @@ include("../config/db.php");
 include("../config/mail.php");
 
 $msg = "";
+$userCreated = false;
 
 if (isset($_POST['add_user'])) {
 
@@ -56,18 +57,28 @@ if (isset($_POST['add_user'])) {
         // Try sending mail
         $mailStatus = sendMail($email, "Create Your Password", $message);
 
-        if ($mailStatus) {
-            $msg = "<div class='alert alert-success'>User added and email sent successfully</div>";
-        } else {
-            // Fallback if mail server not working
-            $msg = "
-            <div class='alert alert-warning'>
-                <b>User added successfully.</b><br>
-                Mail server not configured.<br><br>
-                <b>Use this link to create password:</b><br>
-                <a href='$link' target='_blank'>$link</a>
-            </div>";
-        }
+        $userCreated = true;
+
+        // Simplified success display focused on the link
+        $msg = "
+        <div class='text-center mb-4'>
+            <div class='display-6 text-success mb-2'><i class='bi bi-check-circle-fill'></i></div>
+            <h4 class='mb-1'>Account Created</h4>
+            <p class='text-muted small'>Copy and share the temporary code (link) below:</p>
+            
+            <div class='input-group mb-3 shadow-sm'>
+                <input type='text' class='form-control border-primary bg-white' value='$link' id='inviteLink' readonly>
+                <button class='btn btn-primary' type='button' onclick='copyLink()'>
+                    <i class='bi bi-copy'></i> Copy
+                </button>
+            </div>
+            
+            <div class='d-grid gap-2'>
+                <a href='add_user.php' class='btn btn-outline-secondary'>
+                    <i class='bi bi-person-plus'></i> Create Another User
+                </a>
+            </div>
+        </div>";
     }
 }
 ?>
@@ -92,23 +103,37 @@ if (isset($_POST['add_user'])) {
 
         <?= $msg ?>
 
-        <form method="post">
+        <?php if (!$userCreated): ?>
+        <form method="post" autocomplete="off">
             <div class="mb-3">
                 <label class="form-label">User Name</label>
-                <input type="text" name="name" class="form-control" placeholder="Enter full name" required>
+                <input type="text" name="name" class="form-control" placeholder="Enter full name" required autocomplete="new-password">
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Email ID</label>
-                <input type="email" name="email" class="form-control" placeholder="Enter email address" required>
+                <input type="email" name="email" class="form-control" placeholder="Enter email address" required autocomplete="new-password">
             </div>
 
             <button type="submit" name="add_user" class="btn btn-primary w-100">
                 Create User
             </button>
         </form>
+        <?php endif; ?>
     </div>
 </div>
+
+<script>
+function copyLink() {
+    var copyText = document.getElementById("inviteLink");
+    if(copyText) {
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value);
+        alert("Link copied to clipboard!");
+    }
+}
+</script>
 
 </body>
 </html>
