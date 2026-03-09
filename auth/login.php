@@ -33,6 +33,7 @@ if (isset($_POST['login'])) {
         $admin = mysqli_fetch_assoc($admin_q);
         if (password_verify($password, $admin['password'])) {
             $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_name'] = $admin['username'];
             header("Location: ../admin/dashboard.php");
             exit;
         }
@@ -65,6 +66,7 @@ if (isset($_POST['login'])) {
             }
 
             $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_name'] = $user['name'];
             header("Location: ../user/dashboard.php");
             exit;
         } else {
@@ -86,14 +88,51 @@ if (isset($_POST['login'])) {
 
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <link id="favicon" rel="icon" type="image/png" href="../favicon_base.png">
 </head>
 
 <body class="bg-light">
 
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.login-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.title-glow {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.btn-primary {
+    border-radius: 8px;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+</style>
+
 <div class="container d-flex justify-content-center align-items-center" style="height:100vh;">
-    <div class="card shadow p-4" style="width:400px;">
+    <div class="card login-card p-4" style="width:400px;">
         
-        <h4 class="text-center mb-3">Document Verification System</h4>
+        <div class="text-center mb-4">
+            <i class="bi bi-shield-lock" style="font-size:42px; color:#0d6efd;"></i>
+            <h4 class="mt-2 title-glow">Document Verification</h4>
+        </div>
 
         <?php if ($error): ?>
             <div class="alert alert-danger text-center">
@@ -103,15 +142,13 @@ if (isset($_POST['login'])) {
 
         <form method="post">
 
-            <!-- USERNAME / EMAIL -->
             <div class="mb-3">
-                <label class="form-label">Username / Email</label>
+                <label class="form-label text-muted small fw-bold">Username / Email</label>
                 <input type="text" name="username" class="form-control" placeholder="Enter username or email" required>
             </div>
 
-            <!-- PASSWORD WITH SHOW / HIDE -->
             <div class="mb-3">
-                <label class="form-label">Password</label>
+                <label class="form-label text-muted small fw-bold">Password</label>
                 <div class="input-group">
                     <input type="password" name="password" id="password" class="form-control" placeholder="Enter password" required>
                     <span class="input-group-text" style="cursor:pointer;" onclick="togglePassword()">
@@ -120,32 +157,39 @@ if (isset($_POST['login'])) {
                 </div>
             </div>
 
-            <!-- LOGIN BUTTON -->
             <button type="submit" name="login" class="btn btn-primary w-100">
                 Login
             </button>
+
+            <p class="text-center mt-4 mb-0">
+                <a href="forgot_password.php" class="text-decoration-none">Forgot Password?</a>
+            </p>
 
         </form>
     </div>
 </div>
 
-<!-- SHOW / HIDE PASSWORD SCRIPT -->
 <script>
 function togglePassword() {
-    const passwordField = document.getElementById("password");
-    const eyeIcon = document.getElementById("eyeIcon");
-
-    if (passwordField.type === "password") {
-        passwordField.type = "text";
-        eyeIcon.classList.remove("bi-eye");
-        eyeIcon.classList.add("bi-eye-slash");
+    const passInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('eyeIcon');
+    if (passInput.type === 'password') {
+        passInput.type = 'text';
+        eyeIcon.classList.replace('bi-eye', 'bi-eye-slash');
     } else {
-        passwordField.type = "password";
-        eyeIcon.classList.remove("bi-eye-slash");
-        eyeIcon.classList.add("bi-eye");
+        passInput.type = 'password';
+        eyeIcon.classList.replace('bi-eye-slash', 'bi-eye');
     }
 }
 </script>
+
+<!-- Firebase Notification Integration -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+<script src="../js/fcm-init.js"></script>
+
+</body>
+</html>
 
 </body>
 </html>

@@ -19,9 +19,9 @@ $works = mysqli_query(
 <html>
 <head>
     <title>User Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link id="favicon" rel="icon" type="image/png" href="../favicon_base.png">
+    <script src="../js/notification_engine.js"></script>
     <!-- Link JSZip and Docx-Preview -->
     <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/docx-preview/dist/docx-preview.min.js"></script>
@@ -54,9 +54,12 @@ $works = mysqli_query(
 
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-primary px-4">
-    <span class="navbar-brand">User Dashboard</span>
-    <a href="../auth/logout.php" class="btn btn-sm btn-light">Logout</a>
+<nav class="navbar navbar-dark bg-primary px-4 shadow-sm">
+    <span class="navbar-brand fw-bold mb-0">User Dashboard</span>
+    <div class="ms-auto d-flex gap-2">
+        <a href="reports.php" class="btn btn-sm btn-light fw-bold"><i class="bi bi-file-earmark-bar-graph me-1"></i> My Reports</a>
+        <a href="../auth/logout.php" class="btn btn-sm btn-outline-light">Logout</a>
+    </div>
 </nav>
 
 <div class="container mt-4">
@@ -75,7 +78,7 @@ $works = mysqli_query(
                         <th>Assigned Date</th>
                         <th>Due Date</th>
                         <th>Status</th>
-                        <th>Evidence</th>
+                        <th>sample doc</th>
                         <th>Action</th>
                         <th>Remarks</th>
                     </tr>
@@ -90,7 +93,17 @@ $works = mysqli_query(
                     <tr>
                         <td><?= $i++ ?></td>
 
-                        <td><?= htmlspecialchars($w['title']) ?></td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold text-dark"><?= htmlspecialchars($w['title']) ?></span>
+                                <?php if (!empty($w['sample_doc'])): ?>
+                                    <a href="javascript:void(0)" 
+                                       onclick="openPreview('../uploads/sample_docs/<?= $w['sample_doc'] ?>', '<?= pathinfo($w['sample_doc'], PATHINFO_EXTENSION) ?>')" 
+                                       class="text-primary small text-decoration-none mt-1">
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </td>
 
                         <!-- 12-hour format -->
                         <td><?= date("d-m-Y h:i A", strtotime($w['assigned_datetime'])) ?></td>
@@ -111,37 +124,45 @@ $works = mysqli_query(
                             ?>
                         </td>
                         
-                        <!-- PREVIEW SECTION -->
-                        <td>
-                            <?php 
-                            $sub = mysqli_query($conn, "SELECT * FROM submissions WHERE work_id=".$w['id']." ORDER BY submitted_at DESC LIMIT 1");
-                            if ($s = mysqli_fetch_assoc($sub)) {
-                                $filePath = "../uploads/submissions/".$s['file_path'];
-                                $fileExt = pathinfo($s['file_path'], PATHINFO_EXTENSION);
-                            ?>
-                                <button class="btn btn-outline-info btn-sm d-flex align-items-center gap-1" 
-                                        onclick="openPreview('<?= $filePath ?>', '<?= $fileExt ?>')">
-                                    <i class="bi bi-eye"></i> Preview
-                                </button>
-                            <?php } else { ?>
-                                <span class="text-muted small">N/A</span>
-                            <?php } ?>
-                        </td>
+<!-- SAMPLE DOCUMENT COLUMN -->
+<td>
+    <?php if (!empty($w['sample_doc'])): 
+        $samplePath = "../uploads/samples/" . $w['sample_doc'];
+        $sampleExt  = pathinfo($w['sample_doc'], PATHINFO_EXTENSION);
+    ?>
+        <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" 
+                onclick="openPreview('<?= $samplePath ?>', '<?= $sampleExt ?>')">
+            <i class="bi bi-file-earmark-text"></i> View Sample
+        </button>
+    <?php else: ?>
+        <span class="text-muted small">No Sample</span>
+    <?php endif; ?>
+</td>
 
-                        <!-- SUBMIT BUTTON LOGIC -->
+                        <!-- ACTION COLUMN -->
                         <td>
                             <?php if ($w['status'] == 'pending') { ?>
-                                <a href="submit.php?id=<?= $w['id'] ?>" class="btn btn-sm btn-primary">
+                                <a href="submit.php?id=<?= $w['id'] ?>" class="btn btn-sm btn-primary px-3 rounded-pill fw-bold">
                                     Submit
                                 </a>
                             <?php } elseif ($w['status'] == 'rejected') { ?>
-                                <a href="submit.php?id=<?= $w['id'] ?>" class="btn btn-sm btn-warning">
+                                <a href="submit.php?id=<?= $w['id'] ?>" class="btn btn-sm btn-warning px-3 rounded-pill fw-bold">
                                     Resubmit
                                 </a>
-                            <?php } elseif ($w['status'] == 'submitted') { ?>
-                                <span class="text-muted">Waiting</span>
-                            <?php } else { ?>
-                                <span class="text-success">Completed</span>
+                            <?php } else { 
+                                // For Submitted, Accepted, Completed - Show View button
+                                $sub_check = mysqli_query($conn, "SELECT * FROM submissions WHERE work_id=".$w['id']." ORDER BY submitted_at DESC LIMIT 1");
+                                if ($s_action = mysqli_fetch_assoc($sub_check)) {
+                                    $actPath = "../uploads/submissions/".$s_action['file_path'];
+                                    $actExt = pathinfo($s_action['file_path'], PATHINFO_EXTENSION);
+                            ?>
+                                    <button class="btn btn-sm btn-success px-3 rounded-pill fw-bold" 
+                                            onclick="openPreview('<?= $actPath ?>', '<?= $actExt ?>')">
+                                        <i class="bi bi-file-earmark-check me-1"></i> View
+                                    </button>
+                                <?php } else { ?>
+                                    <span class="text-muted">Waiting</span>
+                                <?php } ?>
                             <?php } ?>
                         </td>
 
@@ -249,7 +270,35 @@ $works = mysqli_query(
                 <p class="mt-3 text-muted">Preview not available for .${ext} files.</p>
             </div>`;
     }
+
 </script>
+
+<div class="text-center mt-3 no-print">
+    <small class="text-muted">
+        <i class="bi bi-bell-fill me-1"></i> Push Status: <span id="fcm-status-text">Initializing...</span>
+    </small>
+    <div class="mt-2">
+        <button onclick="testNotification()" class="btn btn-sm btn-outline-dark rounded-pill">
+            <i class="bi bi-megaphone me-1"></i> Send Test Notification
+        </button>
+    </div>
+</div>
+
+<script>
+function testNotification() {
+    fetch('../api/test_fcm.php')
+    .then(r => r.json())
+    .then(data => {
+        if(data.status === 'success') alert('Test notification sent!');
+        else alert('Error: ' + data.message);
+    });
+}
+</script>
+
+<!-- Firebase Notification Integration -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+<script src="../js/fcm-init.js"></script>
 
 </body>
 </html>

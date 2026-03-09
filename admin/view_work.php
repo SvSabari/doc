@@ -7,10 +7,85 @@ if (!isset($_SESSION['admin_id'])) {
 
 include("../config/db.php");
 
+// Search parameters
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$where_clauses = ["1=1"];
+
+if (!empty($search)) {
+    $s_val = mysqli_real_escape_string($conn, $search);
+    $is_date_search = false;
+
+    // 1. Check for Date Ranges (e.g., "feb 9 to feb 19")
+    if (stripos($search, ' to ') !== false) {
+        $parts = explode(' to ', strtolower($search));
+        if (count($parts) == 2) {
+            $start_dt = strtotime(trim($parts[0]));
+            $end_dt = strtotime(trim($parts[1]));
+            if ($start_dt && $end_dt) {
+                $start_str = date('Y-m-d', $start_dt);
+                $end_str = date('Y-m-d', $end_dt);
+                $where_clauses[] = "DATE(w.created_at) BETWEEN '$start_str' AND '$end_str'";
+                $is_date_search = true;
+            }
+        }
+    }
+
+    // 2. Check for Specific Date patterns (e.g., "Feb 9", "9 Feb", "2024-02-09")
+    if (!$is_date_search) {
+        // Try parsing the entire search string as a date
+        $timestamp = strtotime($search);
+        
+        // Refine detection: if it's just a number, it's likely a title/ID, not a date (unless it's a year)
+        $is_just_number = preg_match('/^\d+$/', $search);
+        $is_year = preg_match('/^\d{4}$/', $search);
+
+        if ($timestamp && (!$is_just_number || $is_year)) {
+            $date_part = date('Y-m-d', $timestamp);
+            
+            // Check if user provided only a year
+            if ($is_year) {
+                $where_clauses[] = "YEAR(w.created_at) = '$search'";
+                $is_date_search = true;
+            }
+            // Check if user provided only a month name
+            elseif (preg_match('/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i', $search) && !preg_match('/\d/', $search)) {
+                $month_num = date('n', $timestamp);
+                $where_clauses[] = "MONTH(w.created_at) = '$month_num' AND YEAR(w.created_at) = YEAR(CURRENT_DATE)";
+                $is_date_search = true;
+            }
+            // Otherwise, treat as a specific day
+            else {
+                // If it's a month + day (like "Feb 9"), we should match that day in any year or current year?
+                // Usually "Feb 9" implies current year if year is omitted.
+                $where_clauses[] = "DATE(w.created_at) = '$date_part'";
+                $is_date_search = true;
+            }
+        }
+    }
+
+    // 3. Fallback or Additional Text Search
+    if (!$is_date_search) {
+        // Handle shortcuts like "this week", "this month"
+        if (strtolower($search) == 'week' || strtolower($search) == 'this week') {
+            $where_clauses[] = "YEARWEEK(w.created_at, 1) = YEARWEEK(CURRENT_DATE, 1)";
+        }
+        elseif (strtolower($search) == 'month' || strtolower($search) == 'this month') {
+            $where_clauses[] = "MONTH(w.created_at) = MONTH(CURRENT_DATE) AND YEAR(w.created_at) = YEAR(CURRENT_DATE)";
+        }
+        else {
+            // Default text search for name or title
+            $where_clauses[] = "(u.name LIKE '%$s_val%' OR w.title LIKE '%$s_val%')";
+        }
+    }
+}
+
+$where_sql = implode(" AND ", $where_clauses);
+
 $works = mysqli_query($conn,
     "SELECT w.*, u.name, u.email
      FROM works w
      JOIN users u ON w.user_id = u.id
+     WHERE $where_sql
      ORDER BY w.created_at DESC"
 );
 ?>
@@ -122,17 +197,33 @@ $works = mysqli_query($conn,
 <div class="container py-5">
     
     <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
+    <div class="row align-items-center mb-4">
+        <div class="col-lg-4">
             <h2 class="fw-bold text-dark mb-1">Document Submissions</h2>
             <p class="text-secondary mb-0">Review and verify user uploaded documents.</p>
         </div>
-        <div>
-            <div class="input-group">
-                <span class="input-group-text bg-white border-end-0">
-                    <i class="bi bi-search text-secondary"></i>
-                </span>
-                <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Search users or titles...">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body bg-white rounded p-3">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-9">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-search text-muted"></i>
+                                </span>
+                                <input type="text" name="search" id="smart_search" class="form-control border-start-0" 
+                                       placeholder="Search by name, title, date (YYYY-MM-DD), month, or 'week'..." 
+                                       value="<?= htmlspecialchars($search) ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary w-100 fw-medium">
+                                Search
+                            </button>
+                            <a href="view_work.php" class="btn btn-outline-secondary w-100 fw-medium">Clear</a>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -166,10 +257,15 @@ $works = mysqli_query($conn,
                             // Status Badge Logic
                             $statusClass = 'bg-secondary';
                             if ($w['status'] == 'completed') $statusClass = 'bg-success';
+                            if ($w['status'] == 'accepted') $statusClass = 'bg-success';
+                            if ($w['status'] == 'rejected') $statusClass = 'bg-danger';
                             if ($w['status'] == 'pending') $statusClass = 'bg-warning text-dark';
+                            if ($w['status'] == 'submitted') $statusClass = 'bg-info text-dark';
                             
                             // File Info
-                            $filePath = $s ? "../uploads/submissions/".$s['file_path'] : '';
+                            $filePath = '';if ($s && !empty($s['file_path'])) {
+                                $filePath = "../uploads/submissions/" . trim($s['file_path']);
+                            }
                             $fileExt = $s ? pathinfo($s['file_path'], PATHINFO_EXTENSION) : '';
                     ?>
                         <tr>
@@ -200,9 +296,9 @@ $works = mysqli_query($conn,
                             </td>
                             <td>
                                 <?php if ($s): ?>
-                                    <button class="btn btn-light btn-sm border d-flex align-items-center gap-2" 
-                                            onclick="openPreview('<?= $filePath ?>', '<?= $fileExt ?>')">
-                                        <i class="bi bi-eye text-primary"></i> Preview
+                                    <button class="btn btn-sm btn-primary"
+                                     onclick="openPreview('<?= $filePath ?>')">
+                                     Preview
                                     </button>
                                 <?php else: ?>
                                     <span class="text-muted fst-italic"><small>Not submitted</small></span>
@@ -257,73 +353,99 @@ $works = mysqli_query($conn,
 
 <!-- Javascript -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Search Filter
-    document.getElementById('searchInput').addEventListener('keyup', function() {
-        const searchText = this.value.toLowerCase();
-        const table = document.getElementById('submissionsTable');
-        const rows = table.getElementsByTagName('tr');
-
-        for (let i = 1; i < rows.length; i++) { // Start at 1 to skip header
-            const row = rows[i];
-            const text = row.innerText.toLowerCase();
-            row.style.display = text.includes(searchText) ? '' : 'none';
-        }
-    });
 
     // Preview Modal Logic
     const previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
     const previewContainer = document.getElementById('previewContent');
     const downloadLink = document.getElementById('downloadLink');
+    const smartSearch = document.getElementById('smart_search');
+    const submissionsTable = document.getElementById('submissionsTable');
 
-    function openPreview(path, ext) {
-        // Clear previous content and show loader
-        previewContainer.innerHTML = `
-            <div class="d-flex flex-column align-items-center justify-content-center w-100 py-5">
-                <div class="spinner-border text-primary" role="status"></div>
-                <span class="mt-2 text-muted">Opening document...</span>
-            </div>`;
-        
-        const validImages = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        const extension = ext.toLowerCase();
-        
-        downloadLink.href = path;
-        previewModal.show();
+    // Real-time Table Filtering
+    smartSearch.addEventListener('input', function() {
+        const filter = this.value.toLowerCase();
+        const rows = submissionsTable.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
 
-        if (validImages.includes(extension)) {
-            previewContainer.innerHTML = `<img src="${path}" alt="Document Preview">`;
-        } else if (extension === 'pdf') {
-            previewContainer.innerHTML = `<iframe src="${path}"></iframe>`;
-        } else if (extension === 'docx') {
-            // Fetch and render docx
-            fetch(path)
-                .then(response => response.blob())
-                .then(blob => {
-                    previewContainer.innerHTML = ''; // Clear loader
-                    docx.renderAsync(blob, previewContainer)
-                        .then(() => console.log("docx: finished"))
-                        .catch(err => {
-                            console.error(err);
-                            showError(extension);
-                        });
-                })
-                .catch(err => {
-                    console.error(err);
-                    showError(extension);
-                });
-        } else {
-            showError(extension);
+        for (let row of rows) {
+            if (row.cells.length <= 1) continue;
+
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
         }
+    });
+
+    function openPreview(path) {
+
+    previewModal.show();
+    downloadLink.href = path;
+
+    previewContainer.innerHTML = `
+        <div class="text-center p-5 w-100">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2 text-muted">Loading preview...</p>
+        </div>`;
+
+    // Automatically detect extension
+    const extension = path.split('.').pop().toLowerCase();
+
+    const images = ['jpg','jpeg','png','gif','webp'];
+
+    // IMAGE
+    if (images.includes(extension)) {
+        previewContainer.innerHTML =
+            `<img src="${path}" style="max-width:100%; max-height:100%;">`;
     }
 
-    function showError(ext) {
+    // PDF
+    else if (extension === 'pdf') {
+        previewContainer.innerHTML =
+            `<iframe src="${path}" width="100%" height="100%" style="border:none;"></iframe>`;
+    }
+
+    // DOCX
+    else if (extension === 'docx') {
+
+        fetch(path)
+            .then(res => res.blob())
+            .then(blob => {
+                previewContainer.innerHTML = '';
+                docx.renderAsync(blob, previewContainer);
+            })
+            .catch(() => {
+                previewContainer.innerHTML = `
+                    <div class="text-center p-5">
+                        <p class="text-danger">Unable to preview Word file.</p>
+                    </div>`;
+            });
+    }
+
+    // EXCEL (cannot preview locally)
+    else if (extension === 'xlsx' || extension === 'xls') {
+
         previewContainer.innerHTML = `
-            <div class="text-center p-5 w-100">
-                <i class="bi bi-file-earmark-text display-1 text-secondary"></i>
-                <p class="mt-3 text-muted">Preview not available or failed for .${ext} files.</p>
+            <div class="text-center p-5">
+                <i class="bi bi-file-earmark-excel display-4 text-success"></i>
+                <p class="mt-3">Excel preview not supported on localhost.</p>
+                <p class="small text-muted">Please download the file.</p>
             </div>`;
     }
+
+    else {
+        previewContainer.innerHTML = `
+            <div class="text-center p-5">
+                <p>No preview available for this file type.</p>
+            </div>`;
+    }
+}
+
 </script>
+
+<!-- Firebase Notification Integration -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
+<script src="../js/fcm-init.js"></script>
 
 </body>
 </html>

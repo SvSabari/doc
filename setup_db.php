@@ -23,7 +23,8 @@ $conn->select_db("doc_verification");
 $sql = "CREATE TABLE IF NOT EXISTS admins (
     id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE
 )";
 $conn->query($sql);
 
@@ -35,7 +36,7 @@ $sql = "CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) DEFAULT NULL,
     status ENUM('active', 'inactive') DEFAULT 'inactive',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)";
+) AUTO_INCREMENT = 5001";
 $conn->query($sql);
 
 // Create Works Table
@@ -71,16 +72,29 @@ $sql = "CREATE TABLE IF NOT EXISTS password_resets (
 )";
 $conn->query($sql);
 
+// Create FCM User Tokens Table
+$sql = "CREATE TABLE IF NOT EXISTS user_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    user_role ENUM('admin', 'user') NOT NULL,
+    token TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY (user_id, token(100))
+)";
+$conn->query($sql);
+
 // Insert Default Admin
 $username = "admin";
 $password = "admin123";
+$email = "sabaris192004@gmail.com";
 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
 $check = $conn->query("SELECT * FROM admins WHERE username='$username'");
 if ($check->num_rows == 0) {
-    $sql = "INSERT INTO admins (username, password) VALUES ('$username', '$hashed_password')";
+    $sql = "INSERT INTO admins (username, password, email) VALUES ('$username', '$hashed_password', '$email')";
     if ($conn->query($sql) === TRUE) {
-        echo "Default admin created (User: admin, Pass: admin123)\n";
+        echo "Default admin created (User: admin, Pass: admin123, Email: $email)\n";
     } else {
         echo "Error creating admin: " . $conn->error . "\n";
     }

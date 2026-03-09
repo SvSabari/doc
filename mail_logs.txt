@@ -1,0 +1,55 @@
+[2026-02-19 06:53:01] TO: sabaris192004@gmail.com | SUBJECT: Your Account Credentials
+BODY: 
+            <h3>Document Verification System</h3>
+            <p>Hello <b>SABARIS</b>,</p>
+            <p>Your account has been created successfully.</p>
+            <p>Here are your login credentials:</p>
+            <p><b>Email:</b> sabaris192004@gmail.com</p>
+            <p><b>Temporary Password:</b> FKWfDprPMq</p>
+            <p>Please login and change your password for security.</p>
+        
+--------------------------------------------------
+[2026-02-19 06:59:56] TO: sabaris192004@gmail.com | SUBJECT: Your Account Credentials
+BODY: 
+            <h3>Document Verification System</h3>
+            <p>Hello <b>sabaris</b>,</p>
+            <p>Your account has been created successfully.</p>
+            <p>Here are your login credentials:</p>
+            <p><b>Email:</b> sabaris192004@gmail.com</p>
+            <p><b>Temporary Password:</b> 7DW6E9Qkex</p>
+            <p>Please login and change your password for security.</p>
+        
+--------------------------------------------------
+[2026-02-19 16:42:19] TO: manjusri20042005@gmail.com | SUBJECT: Your Account Credentials
+BODY: 
+            <h3>Document Verification System</h3>
+            <p>Hello <b>Manjusri</b>,</p>
+            <p>Your account has been created successfully.</p>
+            <p>Here are your login credentials:</p>
+            <p><b>Email:</b> manjusri20042005@gmail.com</p>
+            <p><b>Temporary Password:</b> e4HNaAmkUn</p>
+            <p>Please login and change your password for security.</p>
+        
+--------------------------------------------------
+[2026-02-20 18:14:01] TO: sabaris192004@gmail.com | SUBJECT: Your Account Credentials
+BODY: 
+            <h3>Document Verification System</h3>
+            <p>Hello <b>Sabari</b>,</p>
+            <p>Your account has been created successfully.</p>
+            <p>Here are your login credentials:</p>
+            <p><b>Email:</b> sabaris192004@gmail.com</p>
+            <p><b>Temporary Password:</b> dFYqfgkcbj</p>
+            <p>Please login and change your password for security.</p>
+        
+--------------------------------------------------
+[2026-02-22 06:09:52] TO: sabaris1924@gmail.com | SUBJECT: Your Account Credentials | FROM: sabaris192004@gmail.com
+BODY: 
+            <h3>Document Verification System</h3>
+            <p>Hello <b>sabari</b>,</p>
+            <p>Your account has been created successfully.</p>
+            <p>Here are your login credentials:</p>
+            <p><b>Email:</b> sabaris1924@gmail.com</p>
+            <p><b>Temporary Password:</b> EMK5AQe8Hc</p>
+            <p>Please login and change your password for security.</p>
+        
+--------------------------------------------------
